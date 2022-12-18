@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::utilities::read_file;
 
 fn get_input() -> String {
-    // read_file("problem_9_input")
+    // read_file("problem_9_sample_2")
     read_file("problem_9_input")
 }
 
@@ -35,21 +35,50 @@ struct Head {
 }
 
 impl Head {
-    fn update(&mut self, Move { direction, amount }: Move) {
+    fn update(&mut self, direction: Direction) {
         match direction {
-            Direction::Down => self.position.0 -= amount,
-            Direction::Up => self.position.0 += amount,
-            Direction::Left => self.position.1 -= amount,
-            Direction::Right => self.position.1 += amount,
+            Direction::Down => self.position.0 -= 1,
+            Direction::Up => self.position.0 += 1,
+            Direction::Left => self.position.1 -= 1,
+            Direction::Right => self.position.1 += 1,
         };
     }
 }
 
-struct Tail {
+#[derive(Debug, Clone, Copy)]
+struct Knot {
     position: Position,
 }
 
-impl Tail {
+struct Rope<const KNOTS: usize> {
+    head: Head,
+    knots: [Knot; KNOTS],
+}
+
+impl<const KNOTS: usize> Rope<KNOTS> {
+    fn new() -> Self {
+        Rope {
+            head: Head {
+                position: Position(0, 0),
+            },
+            knots: [Knot {
+                position: Position(0, 0),
+            }; KNOTS],
+        }
+    }
+
+    fn update(&mut self, direction: Direction) -> Position {
+        self.head.update(direction);
+        let mut pos = self.head.position;
+        for knot in &mut self.knots {
+            knot.update(&pos);
+            pos = knot.position;
+        }
+        self.knots[KNOTS - 1].position
+    }
+}
+
+impl Knot {
     fn update(&mut self, &Position(x, y): &Position) {
         let delta_x = x - self.position.0;
         let delta_y = y - self.position.1;
@@ -101,31 +130,25 @@ fn parse_input() -> Moves {
         .collect()
 }
 
-fn solution_part_1() -> u64 {
-    let mut head = Head {
-        position: Position(0, 0),
-    };
-    let mut tail = Tail {
-        position: Position(0, 0),
-    };
+fn generic_solution<const KNOTS: usize>() -> u64 {
+    let mut rope = Rope::<KNOTS>::new();
     let mut tail_positions: Positions = HashSet::from([Position(0, 0)]);
     let moves = parse_input();
-    for m @ Move {
-        direction: _,
-        amount,
-    } in moves
-    {
+    for Move { direction, amount } in moves {
         for _ in 0..amount {
-            head.update(Move { amount: 1, ..m });
-            tail.update(&head.position);
-            tail_positions.insert(tail.position);
+            let tail_position = rope.update(direction);
+            tail_positions.insert(tail_position);
         }
     }
     tail_positions.len() as u64
 }
 
+fn solution_part_1() -> u64 {
+    generic_solution::<1>()
+}
+
 fn solution_part_2() -> u64 {
-    todo!()
+    generic_solution::<9>()
 }
 
 #[cfg(test)]
