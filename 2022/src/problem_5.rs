@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
-use crate::utilities::read_file;
+use crate::utilities::{as_maybe_num, read_file};
 
 fn get_input() -> String {
-    read_file("problem_5_input")
+    read_file("problem_5_sample")
 }
 
 struct Instruction {
@@ -26,10 +26,10 @@ impl Stacks {
 
     fn execute_keep_order(&mut self, &Instruction { crates, from, to }: &Instruction) {
         let from_len = self.configuration[from].len();
-        let mut to_push = self.configuration[from][from_len - crates..from_len]
+        let mut to_push: Vec<_> = self.configuration[from][from_len - crates..from_len]
             .iter()
             .cloned()
-            .collect::<Vec<char>>();
+            .collect();
         self.configuration[to].append(&mut to_push);
         self.configuration[from].truncate(from_len - crates);
     }
@@ -49,10 +49,10 @@ fn parse_stack(stack_str: &str) -> char {
 fn parse_stacks(stacks_str: String) -> Stacks {
     let mut lines = stacks_str.lines().rev();
     let col_nums = lines.next().unwrap();
-    let col_indexes = col_nums
+    let col_indexes: Vec<_> = col_nums
         .char_indices()
-        .filter_map(|(s, c)| c.to_digit(10).map(|digit| ((digit - 1) as usize, s)))
-        .collect::<Vec<(usize, usize)>>();
+        .filter_map(|(s, c)| as_maybe_num::<usize>(c).map(|digit| (digit - 1, s)))
+        .collect();
 
     let mut stacks = Stacks {
         configuration: vec![vec![]; col_indexes.len()],
@@ -70,10 +70,10 @@ fn parse_stacks(stacks_str: String) -> Stacks {
 }
 
 fn parse_instruction(s: &str) -> Instruction {
-    let args = s
+    let args: Vec<_> = s
         .split_whitespace()
         .filter_map(|chunk| chunk.parse::<usize>().ok())
-        .collect::<Vec<usize>>();
+        .collect();
     Instruction {
         crates: args[0],
         from: args[1] - 1,

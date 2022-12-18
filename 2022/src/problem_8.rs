@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::utilities::read_file;
+use crate::utilities::{as_num, read_file};
 
 fn get_input() -> String {
     read_file("problem_8_input")
@@ -8,7 +8,8 @@ fn get_input() -> String {
 }
 
 type Height = u8;
-type TreeField = Vec<Vec<Height>>;
+type TreeLine = Vec<Height>;
+type TreeField = Vec<TreeLine>;
 
 #[derive(Clone, Copy)]
 struct Tree {
@@ -21,6 +22,12 @@ impl Tree {
     fn is_edge(&self) -> bool {
         self.x == 0 || self.y == 0
     }
+}
+
+fn field_size(tree_field: &[TreeLine]) -> (usize, usize) {
+    let rows = tree_field.len();
+    let cols = if rows > 0 { tree_field[0].len() } else { 0 };
+    (rows, cols)
 }
 
 struct Field {
@@ -36,42 +43,40 @@ impl Field {
         if tree.is_edge() {
             return true;
         }
-        let rows = self.tree_field.len();
-        let cols = self.tree_field[0].len();
+        let (rows, cols) = field_size(&self.tree_field);
         let Tree { x, y, h } = tree;
-        let from_above: Vec<_> = self.tree_field[0..x].iter().map(|c| c[y]).collect();
-        let from_below: Vec<_> = self.tree_field[x + 1..rows].iter().map(|c| c[y]).collect();
-        Self::is_line_visible(h, &self.tree_field[x][0..y])
-            || Self::is_line_visible(h, &self.tree_field[x][y + 1..cols])
-            || Self::is_line_visible(h, &from_below)
-            || Self::is_line_visible(h, &from_above)
+        let from_above = self.tree_field[0..x].iter().map(|c| c[y]);
+        let from_below = self.tree_field[x + 1..rows].iter().map(|c| c[y]);
+        Self::is_line_visible(h, self.tree_field[x][0..y].iter().cloned())
+            || Self::is_line_visible(h, self.tree_field[x][y + 1..cols].iter().cloned())
+            || Self::is_line_visible(h, from_below)
+            || Self::is_line_visible(h, from_above)
     }
 
     fn scenic_score(&self, tree: Tree) -> u64 {
         if tree.is_edge() {
             return 0;
         }
-        let rows = self.tree_field.len();
-        let cols = self.tree_field[0].len();
+        let (rows, cols) = field_size(&self.tree_field);
         let Tree { x, y, h } = tree;
-        let from_above: Vec<_> = self.tree_field[0..x].iter().rev().map(|c| c[y]).collect();
-        let from_below: Vec<_> = self.tree_field[x + 1..rows].iter().map(|c| c[y]).collect();
-        let from_left: Vec<_> = self.tree_field[x][0..y].iter().rev().cloned().collect();
-        let from_right: Vec<_> = self.tree_field[x][y + 1..cols].iter().cloned().collect();
+        let from_above = self.tree_field[0..x].iter().rev().map(|c| c[y]);
+        let from_below = self.tree_field[x + 1..rows].iter().map(|c| c[y]);
+        let from_left = self.tree_field[x][0..y].iter().rev().cloned();
+        let from_right = self.tree_field[x][y + 1..cols].iter().cloned();
 
-        Self::line_score(h, &from_above)
-            * Self::line_score(h, &from_below)
-            * Self::line_score(h, &from_left)
-            * Self::line_score(h, &from_right)
+        Self::line_score(h, from_above)
+            * Self::line_score(h, from_below)
+            * Self::line_score(h, from_left)
+            * Self::line_score(h, from_right)
     }
 
-    fn is_line_visible(h: Height, line: &[Height]) -> bool {
-        line.iter().all(|&x| x < h)
+    fn is_line_visible(h: Height, mut row: impl Iterator<Item = Height>) -> bool {
+        row.all(|x| x < h)
     }
 
-    fn line_score(h: Height, line: &[Height]) -> u64 {
+    fn line_score(h: Height, row: impl Iterator<Item = Height>) -> u64 {
         let mut score = 0;
-        for &tree_height in line {
+        for tree_height in row {
             score += 1;
             if tree_height >= h {
                 break;
@@ -84,11 +89,11 @@ impl Field {
 struct FieldIter<'a> {
     x: usize,
     y: usize,
-    tree_field: &'a [Vec<Height>],
+    tree_field: &'a [TreeLine],
 }
 
 impl<'a> FieldIter<'a> {
-    fn new(tree_field: &'a [Vec<Height>]) -> Self {
+    fn new(tree_field: &'a [TreeLine]) -> Self {
         Self {
             x: 0,
             y: 0,
@@ -101,15 +106,10 @@ impl<'a> Iterator for FieldIter<'a> {
     type Item = Tree;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let rows = self.tree_field.len();
+        let (rows, cols) = field_size(self.tree_field);
         if self.x == rows {
             return None;
         }
-        let cols = if rows > 0 {
-            self.tree_field[0].len()
-        } else {
-            0
-        };
         let item = Some(Self::Item {
             x: self.x,
             y: self.y,
@@ -126,11 +126,7 @@ impl<'a> Iterator for FieldIter<'a> {
 
 fn parse_input() -> Field {
     let tree_field = get_input().lines().fold(vec![], |mut acc, ln| {
-        acc.push(
-            ln.chars()
-                .map(|c| c.to_digit(10).unwrap() as Height)
-                .collect(),
-        );
+        acc.push(ln.chars().map(|c| as_num::<Height>(c)).collect());
         acc
     });
     Field { tree_field }
