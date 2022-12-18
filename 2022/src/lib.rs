@@ -6,4 +6,5 @@ mod problem_5;
 mod problem_6;
 mod problem_7;
 mod problem_8;
+mod problem_9;
 mod utilities;
