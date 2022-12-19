@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{fmt::Debug, str::FromStr};
+use std::{collections::HashSet, fmt::Debug, str::FromStr};
 
 use crate::utilities::read_file;
 
@@ -10,6 +10,8 @@ fn get_input() -> String {
 }
 
 type Integral = u64;
+type MonkeyIndexWithItem = (usize, Integral);
+type ItemsToThrow = Vec<MonkeyIndexWithItem>;
 
 #[derive(Debug, Clone)]
 enum Operation {
@@ -41,10 +43,22 @@ impl Monkey {
         }
     }
 
-    fn play(&mut self) -> Vec<(usize, Integral)> {
+    fn play(&mut self) -> ItemsToThrow {
         self.inspected += self.items.len() as u64;
-        let to_throw = self
-            .items
+        let to_throw = self.inspect_items(|stress| stress / 3);
+        self.items.clear();
+        to_throw
+    }
+
+    fn play_part_2(&mut self, gcd: u64) -> ItemsToThrow {
+        self.inspected += self.items.len() as u64;
+        let to_throw = self.inspect_items(|stress| stress % gcd);
+        self.items.clear();
+        to_throw
+    }
+
+    fn inspect_items(&mut self, stess_reducer: impl Fn(Integral) -> Integral) -> ItemsToThrow {
+        self.items
             .iter()
             .map(|&item| {
                 let item = match self.operation {
@@ -53,7 +67,7 @@ impl Monkey {
                     Operation::MultiplyOld => item * item,
                     Operation::MultiplyIntegral(n) => item * n,
                 };
-                let item = item / 3;
+                let item = stess_reducer(item);
                 let id = if item % self.divisibility_check == 0 {
                     self.monkey_true
                 } else {
@@ -61,9 +75,7 @@ impl Monkey {
                 };
                 (id, item)
             })
-            .collect();
-        self.items.clear();
-        to_throw
+            .collect()
     }
 
     fn catch_item(&mut self, item: Integral) {
@@ -125,30 +137,33 @@ fn parse_input() -> Vec<Monkey> {
         .collect()
 }
 
-fn play_round(monkeys: &mut [Monkey]) {
+fn play_round(monkeys: &mut [Monkey], play_fn: impl Fn(&mut Monkey) -> Vec<(usize, u64)>) {
     for i in 0..monkeys.len() {
-        let indexed_items = monkeys[i].play();
+        let indexed_items = play_fn(&mut monkeys[i]);
         for (id, item) in indexed_items {
             monkeys[id].catch_item(item);
         }
     }
 }
 
-fn play_rounds(rounds: u32, monkeys: &mut [Monkey]) {
-    for _ in 0..rounds {
-        play_round(monkeys);
-    }
-}
-
 fn solution_part_1() -> Integral {
     let mut monkeys = parse_input();
-    play_rounds(20, &mut monkeys);
+    for _ in 0..20 {
+        play_round(&mut monkeys, |monkey| monkey.play());
+    }
     monkeys.sort_by(|ma, mb| mb.inspected.cmp(&ma.inspected));
     monkeys[0].inspected * monkeys[1].inspected
 }
 
 fn solution_part_2() -> Integral {
-    todo!()
+    let mut monkeys = parse_input();
+    let gcd: HashSet<_> = monkeys.iter().map(|m| m.divisibility_check).collect();
+    let gcd = gcd.iter().fold(1, |acc, n| acc * n);
+    for _ in 0..10000 {
+        play_round(&mut monkeys, |monkey| monkey.play_part_2(gcd));
+    }
+    monkeys.sort_by(|ma, mb| mb.inspected.cmp(&ma.inspected));
+    monkeys[0].inspected * monkeys[1].inspected
 }
 
 #[cfg(test)]
@@ -162,6 +177,6 @@ mod tests {
 
     #[test]
     fn problem_11_solution_part_2_test() {
-        println!("problem 11 solution 2: \n{}", solution_part_2());
+        println!("problem 11 solution 2: {}", solution_part_2());
     }
 }
