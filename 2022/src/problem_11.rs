@@ -43,16 +43,9 @@ impl Monkey {
         }
     }
 
-    fn play(&mut self) -> ItemsToThrow {
+    fn play(&mut self, stess_reducer: impl Fn(Integral) -> Integral) -> ItemsToThrow {
         self.inspected += self.items.len() as u64;
-        let to_throw = self.inspect_items(|stress| stress / 3);
-        self.items.clear();
-        to_throw
-    }
-
-    fn play_part_2(&mut self, gcd: u64) -> ItemsToThrow {
-        self.inspected += self.items.len() as u64;
-        let to_throw = self.inspect_items(|stress| stress % gcd);
+        let to_throw = self.inspect_items(stess_reducer);
         self.items.clear();
         to_throw
     }
@@ -146,24 +139,35 @@ fn play_round(monkeys: &mut [Monkey], play_fn: impl Fn(&mut Monkey) -> Vec<(usiz
     }
 }
 
-fn solution_part_1() -> Integral {
-    let mut monkeys = parse_input();
-    for _ in 0..20 {
-        play_round(&mut monkeys, |monkey| monkey.play());
-    }
+fn compute_monkey_business(mut monkeys: Vec<Monkey>) -> u64 {
     monkeys.sort_by(|ma, mb| mb.inspected.cmp(&ma.inspected));
     monkeys[0].inspected * monkeys[1].inspected
 }
 
+fn generic_solution<StressReducer>(
+    mut monkeys: Vec<Monkey>,
+    rounds: usize,
+    stress_reducer: StressReducer,
+) -> Integral
+where
+    StressReducer: Fn(Integral) -> Integral + Copy,
+{
+    for _ in 0..rounds {
+        play_round(&mut monkeys, |monkey| monkey.play(stress_reducer));
+    }
+    compute_monkey_business(monkeys)
+}
+
+fn solution_part_1() -> Integral {
+    let monkeys = parse_input();
+    generic_solution(monkeys, 20, |stress| stress / 3)
+}
+
 fn solution_part_2() -> Integral {
-    let mut monkeys = parse_input();
+    let monkeys = parse_input();
     let gcd: HashSet<_> = monkeys.iter().map(|m| m.divisibility_check).collect();
     let gcd = gcd.iter().fold(1, |acc, n| acc * n);
-    for _ in 0..10000 {
-        play_round(&mut monkeys, |monkey| monkey.play_part_2(gcd));
-    }
-    monkeys.sort_by(|ma, mb| mb.inspected.cmp(&ma.inspected));
-    monkeys[0].inspected * monkeys[1].inspected
+    generic_solution(monkeys, 10_000, |stress| stress % gcd)
 }
 
 #[cfg(test)]
