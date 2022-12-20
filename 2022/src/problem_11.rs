@@ -130,15 +130,6 @@ fn parse_input() -> Vec<Monkey> {
         .collect()
 }
 
-fn play_round(monkeys: &mut [Monkey], play_fn: impl Fn(&mut Monkey) -> Vec<(usize, u64)>) {
-    for i in 0..monkeys.len() {
-        let indexed_items = play_fn(&mut monkeys[i]);
-        for (id, item) in indexed_items {
-            monkeys[id].catch_item(item);
-        }
-    }
-}
-
 fn compute_monkey_business(mut monkeys: Vec<Monkey>) -> u64 {
     monkeys.sort_by(|ma, mb| mb.inspected.cmp(&ma.inspected));
     monkeys[0].inspected * monkeys[1].inspected
@@ -153,7 +144,12 @@ where
     StressReducer: Fn(Integral) -> Integral + Copy,
 {
     for _ in 0..rounds {
-        play_round(&mut monkeys, |monkey| monkey.play(stress_reducer));
+        for i in 0..monkeys.len() {
+            let indexed_items = monkeys[i].play(stress_reducer);
+            for (id, item) in indexed_items {
+                monkeys[id].catch_item(item);
+            }
+        }
     }
     compute_monkey_business(monkeys)
 }
