@@ -160,25 +160,18 @@ fn parse_input() -> Graph {
         .enumerate()
         .map(|(x, ln)| {
             ln.char_indices()
-                .map(|(y, c)| match c {
-                    'S' => Node {
-                        height: 'a' as i16,
-                        category: Category::Start,
+                .map(|(y, c)| {
+                    let (height, category) = match c {
+                        'S' => ('a' as i16, Category::Start),
+                        'E' => ('z' as i16, Category::End),
+                        _ => (c as i16, Category::Generic),
+                    };
+                    Node {
+                        height,
+                        category,
                         distance: Distance::Infinite,
                         position: Position { x, y },
-                    },
-                    'E' => Node {
-                        height: 'z' as i16,
-                        category: Category::End,
-                        distance: Distance::Infinite,
-                        position: Position { x, y },
-                    },
-                    ch => Node {
-                        height: ch as i16,
-                        category: Category::Generic,
-                        distance: Distance::Infinite,
-                        position: Position { x, y },
-                    },
+                    }
                 })
                 .collect()
         })
