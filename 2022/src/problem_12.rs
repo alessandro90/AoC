@@ -250,12 +250,12 @@ mod tests {
     use crate::problem_12::*;
 
     #[test]
-    fn problem_11_solution_part_1_test() {
+    fn problem_12_solution_part_1_test() {
         println!("problem 12 solution 1: {}", solution_part_1());
     }
 
     #[test]
-    fn problem_11_solution_part_2_test() {
+    fn problem_12_solution_part_2_test() {
         println!("problem 12 solution 2: {}", solution_part_2());
     }
 }
