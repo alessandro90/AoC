@@ -125,7 +125,14 @@ impl Graph {
         self.nodes[x][y]
     }
 
-    fn reacheable_node_positions(&self, pos @ Position { x, y }: Position) -> Vec<Position> {
+    fn reacheable_node_positions<BarrierFn>(
+        &self,
+        pos @ Position { x, y }: Position,
+        barrier_function: BarrierFn,
+    ) -> Vec<Position>
+    where
+        BarrierFn: Fn(i16, i16) -> bool + Copy,
+    {
         let inf_x = if x == 0 { 0 } else { x - 1 };
         let inf_y = if y == 0 { 0 } else { y - 1 };
         let sup_x = if x == self.nodes.len() - 1 { x } else { x + 1 };
@@ -142,7 +149,7 @@ impl Graph {
             Position { x: sup_x, y },
         ]
         .into_iter()
-        .filter(|&p| self.check_position(pos, p, |h1, h2| h2 - h1 <= 1))
+        .filter(|&p| self.check_position(pos, p, barrier_function))
         .collect()
     }
 }
@@ -157,7 +164,7 @@ fn parse_input() -> Graph {
                     'S' => Node {
                         height: 'a' as i16,
                         category: Category::Start,
-                        distance: Distance::Finite(0),
+                        distance: Distance::Infinite,
                         position: Position { x, y },
                     },
                     'E' => Node {
@@ -181,22 +188,32 @@ fn parse_input() -> Graph {
         })
 }
 
-fn dijkstra(graph: &mut Graph) {
-    let start = graph.find_start();
-    let end = graph.find_end();
+fn dijkstra<EndPredicate, BarrierFn>(
+    mut graph: Graph,
+    start: Position,
+    end_predicate: EndPredicate,
+    barrier_function: BarrierFn,
+) -> u64
+where
+    EndPredicate: Fn(&Node) -> bool,
+    BarrierFn: Fn(i16, i16) -> bool + Copy,
+{
     let mut unvisited = BinaryHeap::new();
     unvisited.push(graph.get_node(start));
 
     while let Some(node) = unvisited.pop() {
-        if node.position == end {
-            return;
+        if end_predicate(&node) {
+            return match node.distance {
+                Distance::Infinite => panic!("Invalid distance"),
+                Distance::Finite(d) => d,
+            };
         }
-        for nearest in graph.reacheable_node_positions(node.position) {
-            let mut nearest_node = graph.get_node(nearest);
-            let cost = 1;
+        for nearest in graph.reacheable_node_positions(node.position, barrier_function) {
             match node.distance {
                 Distance::Infinite => panic!("Invalid distance"),
                 Distance::Finite(d) => {
+                    let mut nearest_node = graph.get_node(nearest);
+                    let cost = 1;
                     let tentative_dist = Distance::Finite(d + cost);
                     if tentative_dist < nearest_node.distance {
                         nearest_node.distance = tentative_dist;
@@ -212,16 +229,27 @@ fn dijkstra(graph: &mut Graph) {
 
 fn solution_part_1() -> u64 {
     let mut graph = parse_input();
-    dijkstra(&mut graph);
-    let end_node_pos = graph.find_end();
-    match graph.get_node(end_node_pos).distance {
-        Distance::Infinite => panic!("Invalid infinite distance"),
-        Distance::Finite(d) => d,
-    }
+    let start = graph.find_start();
+    graph.nodes[start.x][start.y].distance = Distance::Finite(0);
+    let end = graph.find_end();
+    dijkstra(
+        graph,
+        start,
+        |node| node.position == end,
+        |h1, h2| h2 - h1 <= 1,
+    )
 }
 
 fn solution_part_2() -> u64 {
-    todo!()
+    let mut graph = parse_input();
+    let start = graph.find_end();
+    graph.nodes[start.x][start.y].distance = Distance::Finite(0);
+    dijkstra(
+        graph,
+        start,
+        |node| node.height == ('a' as i16),
+        |h1, h2| h1 - h2 <= 1,
+    )
 }
 
 #[cfg(test)]
