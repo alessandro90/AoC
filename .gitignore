@@ -1,0 +1,4 @@
+dist-newstyle/
+target/
+2022/inputs/
+**/*.txt
